@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class Unit:
+    """Unit class"""
+
     num: int
     center: tuple
     x: float
@@ -13,7 +15,6 @@ class Unit:
     alive: bool
     radius: float
     king: bool
-
 
     def render(self, screen) -> None:
         """Renders the hexagon on the screen"""

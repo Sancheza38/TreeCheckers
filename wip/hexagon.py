@@ -10,9 +10,7 @@ import math
 from dataclasses import dataclass
 from typing import List
 from typing import Tuple
-
 import pygame
-
 
 @dataclass
 class HexagonTile:
@@ -92,7 +90,6 @@ class HexagonTile:
         offset = self.highlight_offset * self.highlight_tick
         brighten = lambda x, y: x + y if x + y < 255 else 255
         return tuple(brighten(x, offset) for x in self.colour)
-
 
 class FlatTopHexagonTile(HexagonTile):
     def compute_vertices(self) -> List[Tuple[float, float]]:
