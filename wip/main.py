@@ -16,25 +16,24 @@ from Unit import Unit
 import math
 pygame.init()
 
-
+_FONT_PATH = os.path.join("wip","ModernDOS8x8.ttf")
+font = pygame.font.Font(_FONT_PATH, 31)
 
 # pylint: disable=no-member
 LIGHT_CYAN = (85, 255, 255)
 LIGHT_MAGENTA = (255, 85, 255)
 DARK_CYAN = (0, 170, 170)
 DARK_MAGENTA = (170, 0, 170)
-current_player = LIGHT_CYAN
+current_player = (LIGHT_CYAN, 0, font.render("Player 1", False, DARK_CYAN))
 cur_player = 0
 nxt_player = 1
-next_player = LIGHT_MAGENTA
+next_player = (LIGHT_MAGENTA, 1, font.render("Player 2", False, DARK_MAGENTA))
 UNITS_NUM = 18
-circle=None
+circle = None
+count = 0
 
-
-_FONT_PATH = os.path.join("wip","ModernDOS8x8.ttf")
-font = pygame.font.Font(_FONT_PATH, 31)
-player = font.render("Player 1", False, DARK_CYAN)
-nextPlayer = font.render("Player 2", False, DARK_MAGENTA)
+# player = font.render("Player 1", False, DARK_CYAN)
+# nextPlayer = font.render("Player 2", False, DARK_MAGENTA)
 
 def create_hexagon(position, radius=34.64, flat_top=False) -> HexagonTile:
     """Creates a hexagon tile at the specified position"""
@@ -112,24 +111,28 @@ def init_hexagons(num_x=17, num_y=14, flat_top=False) -> List[HexagonTile]:
     return hexagons
 
 
-def render(screen, hexagons, circle):
+def render(screen, hexagons, circleUnits):
     """Renders hexagons on the screen"""
-    screen.fill(current_player)
-    screen.blit(player,(4,5))
+    screen.fill(current_player[0])
+    screen.blit(current_player[2],(4,5))
 
     for hexagon in hexagons:
         hexagon.render(screen)
         hexagon.render_highlight(screen, border_colour=(0, 0, 0))
-    circle.render(screen)
+    for circle in circleUnits:
+        circle.render(screen)
     pygame.display.flip()
 
-def render_mouse_down(screen, hexagons, circle, distance):
+def render_mouse_down(screen, hexagons, circleUnits, distance):
     """Renders hexagons on the screen"""
-
-    screen.fill(current_player)
-    screen.blit(player,(4,5))
-    start_position = (circle.x, circle.y)
-    current_position = circle.center
+    global count
+    start_position=[0,1,2,3]
+    current_position=[0,1,2,3]
+    screen.fill(current_player[0])
+    screen.blit(current_player[2],(4,5))
+    for circle in circleUnits:
+        start_position[circle.num] = (circle.x, circle.y)
+        current_position[circle.num] = circle.center
     for hexagon in hexagons:
         hexagon.render(screen)
         hexagon.render_highlight(screen, border_colour=(0, 0, 0))
@@ -141,67 +144,72 @@ def render_mouse_down(screen, hexagons, circle, distance):
     ]
     for hexagon in colliding_hexagons:
         hexagon.render_highlight(screen, border_colour=(255, 255, 255))
-        hexagon.colour=current_player
-        if math.dist(start_position, hexagon.centre) < 130 and distance < 130:
-            distance+= math.dist(start_position, hexagon.centre)
-            circle.center=hexagon.centre
-            current_position = circle.center
+        hexagon.colour=current_player[0]
+        for circle in circleUnits:
+            moving=None
+            if (count==0 and math.dist(start_position[circle.num], hexagon.centre) < 130) or (circle==moving and distance < 130 and math.dist(start_position[circle.num], hexagon.centre) < 130):
+                count == 1
+                distance+= math.dist(start_position[circle.num], hexagon.centre)
+                circle.center=hexagon.centre
+                current_position[circle.num] = circle.center
+                moving = circle
+                
+                # circle.render(screen)
+            else:
+                # for circle in circleUnits:
+                circle.center=current_position[circle.num]
+                # circle.render(screen)
             circle.render(screen)
 
-        else:
-            circle.center=current_position
-            circle.render(screen)
-
-    # circle.render(screen)
+    for circle in circleUnits:
+        circle.render(screen)
     pygame.display.flip()
-    return distance
+    return
 
 def changePlayer():
-    global current_player, next_player, player, nextPlayer
-    current_player, next_player, player, nextPlayer = next_player, current_player, nextPlayer, player
+    global current_player, next_player
+    current_player, next_player = next_player, current_player
 
 
 def main():
     """Main function"""
     distance = 0
-    temp=None
     pygame.init()
     mouse_down = False
     screen = pygame.display.set_mode((1280, 960))
     clock = pygame.time.Clock()
     hexagons = init_hexagons(flat_top=False)
     #unit_list = init_units(UNITS_NUM=UNITS_NUM)
-    count = 0
-    circle = Unit(num=1,center=hexagons[count].centre,x=hexagons[count].centre[0], y=hexagons[count].centre[1], player=1, link=2, color=DARK_MAGENTA, alive=True, radius=30, king=True)
-    temp=circle.center
+
+    circle1 = Unit(num=1,center=hexagons[0].centre, x=hexagons[0].centre[0], y=hexagons[0].centre[1], player=1, link=2, color=DARK_MAGENTA, alive=True, radius=30, king=True)
+    circle2 = Unit(num=2,center=hexagons[3].centre, x=hexagons[3].centre[0], y=hexagons[3].centre[1], player=1, link=1, color=DARK_MAGENTA, alive=True, radius=30, king=False)
+    circleUnits = [circle1, circle2]
     terminated = False
     while not terminated:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminated = True
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_down = True
+
             elif event.type == pygame.MOUSEBUTTONUP:
                 mouse_down = False
                 changePlayer()
-                if count < 251: count+=1
-                else: count=0
-                # circle.center = hexagons[count].centre
-                distance = 0
-                temp = circle.center
-                circle.center = temp
-                newX, newY = circle.center[0], circle.center[1]
-                circle.x=newX
-                circle.y=newY
+                for circle in circleUnits:
+                    distance = 0
+                    newX, newY = circle.center[0], circle.center[1]
+                    circle.x=newX
+                    circle.y=newY
 
         for hexagon in hexagons:
             hexagon.update()
 
         if mouse_down == True:
-            render_mouse_down(screen, hexagons, circle, distance)
+            count = render_mouse_down(screen, hexagons, circleUnits, distance)
           
         else:
-            render(screen, hexagons, circle)
+            render(screen, hexagons, circleUnits)
 
         clock.tick(50)
     pygame.display.quit()
