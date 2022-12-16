@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-import sys
+
 import os
+import sys 
+import math
 import random
+import pygame
 from typing import List
 from typing import Tuple
-import pygame
+
 from hexagon import FlatTopHexagonTile
 from hexagon import HexagonTile
-from Unit import Unit
-import math
+from unit import Unit
+
 pygame.init()
 
 _FONT_PATH = os.path.join("wip","ModernDOS8x8.ttf")
