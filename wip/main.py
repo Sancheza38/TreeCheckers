@@ -33,6 +33,44 @@ def create_hexagon(position, radius=34.64, flat_top=False) -> HexagonTile:
     class_ = FlatTopHexagonTile if flat_top else HexagonTile
     return class_(radius, position, colour=(255, 255, 255))
 
+def init_units_test(UNITS_NUM=18) -> List[Unit]:
+    """Creates a list of unit pieces for the gameboard"""
+    i,j,j1,j2,dd,best_dd,best=None
+    h=960
+    w=1280
+    rad=30 #34.64
+    border_y = 108
+    border_x = 115
+    ti_restart = True
+    circle = [[None for x in range(10)] for x in range(UNITS_NUM)]
+    for unit in range(UNITS_NUM/2):
+        circle[unit][0]=unit
+        circle[unit+UNITS_NUM/2][0]=unit+UNITS_NUM/2
+        while ti_restart:
+            ti_restart=False
+            circle[unit][3]= math.floor((random.randrange(0,4294967295)%960)-(rad*2))+rad
+            circle[unit+UNITS_NUM/2][3]=h-1-circle[unit][3]
+            j1 = circle[unit][3]/(rad*2)
+            j2 = circle[unit+UNITS_NUM/2][3]/(rad*2)
+            circle[unit][3]+=border_y
+
+            if not unit:
+                circle[unit][2]=rad
+                if j1&1:
+                    ti_restart=True
+            else:
+                circle[unit][2]=math.floor((random.randrange(0,4294967295)%((w-rad*2*2)/2))-(rad*2))+rad
+        circle[unit+UNITS_NUM/2][2]=w-1-circle[unit][2]
+
+        if j1&1:
+            circle[unit][2]+=rad
+        if j2&1:
+            circle[unit+UNITS_NUM/2][2]+=rad
+        circle[unit][2]+=border_x
+        circle[unit+UNITS_NUM/2][2]+=border_x
+
+        
+
 def init_units(UNITS_NUM, hexagons) -> List[Unit]:
     """Creates a list of unit pieces for the gameboard"""
     circle1 = Unit(num=1,center=hexagons[1].centre, x=hexagons[1].centre[0], y=hexagons[1].centre[1], player=1, link=2, color=DARK_MAGENTA, alive=True, radius=30, king=True)
@@ -76,15 +114,24 @@ def render(screen, hexagons, circleUnits):
     """Renders hexagons and units on the screen"""
     screen.fill(current_player[0])
     screen.blit(current_player[2],(4,5))
-
+    temp=None
     for hexagon in hexagons:
         hexagon.render(screen)
         hexagon.render_highlight(screen, border_colour=(0, 0, 0))
     for circle in circleUnits:
+        for circle2 in circleUnits:
+            if circle2.link == circle.num:
+                temp = circle2
+        pygame.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
         circle.render(screen)
+    for circle in circleUnits:
+        for circle2 in circleUnits:
+            if circle2.link == circle.num:
+                temp = circle2
+        pygame.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
     pygame.display.flip()
 
-def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance):
+def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin):
     """Renders hexagons and selected unit on the screen"""
     start_position=list(range(UNITS_NUM))
     current_position=list(range(UNITS_NUM))
@@ -104,7 +151,7 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance):
     ]
     for hexagon in colliding_hexagons:
         for circle in circleUnits:
-            if  circle==tempUnit and distance < 130 and math.dist(start_position[circle.num], hexagon.centre) < 130:
+            if  circle==tempUnit and distance < 180 and math.dist(start_position[circle.num], hexagon.centre) < 180:
                 distance+= math.dist(start_position[circle.num], hexagon.centre)
                 circle.center=hexagon.centre
                 current_position[circle.num] = circle.center
@@ -113,6 +160,16 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance):
             circle.render(screen)
 
     for circle in circleUnits: circle.render(screen)
+    for circle in circleUnits:
+        for circle2 in circleUnits:
+            if circle2.link == circle.num:
+                temp = circle2
+        pygame.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
+    
+    pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]+10), (origin[0]+10,origin[1]-10),3)
+    pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]-10), (origin[0]+10,origin[1]+10),3)
+    pygame.draw.line(screen,(255,0,0), (origin[0],origin[1]), (tempUnit.center[0],tempUnit.center[1]),2)
+
     pygame.display.flip()
     return
 
@@ -139,6 +196,7 @@ def changePlayer(tempUnit):
 
 def main():
     """Main function"""
+    origin=None
     distance = 0
     tempUnit = None
     pygame.init()
@@ -158,6 +216,7 @@ def main():
 
             elif not tempUnit and event.type == pygame.MOUSEBUTTONDOWN:
                 tempUnit=UnitFind(circleUnits)
+                origin = tempUnit.center
                 mouse_down = True
                 show_start=True
 
@@ -166,13 +225,14 @@ def main():
                 distance=0
                 show_start=False
                 changePlayer(tempUnit)
+                origin=None
                 tempUnit=None
 
         for hexagon in hexagons:
             hexagon.update()
 
         if tempUnit!=None and mouse_down:
-            count = render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance)
+            count = render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
           
         else:
             render(screen, hexagons, circleUnits)
