@@ -25,6 +25,7 @@ DARK_MAGENTA = (170, 0, 170)
 current_player = (LIGHT_CYAN, 0, font.render("Player 1", False, DARK_CYAN))
 next_player = (LIGHT_MAGENTA, 1, font.render("Player 2", False, DARK_MAGENTA))
 UNITS_NUM = 18
+num_alive:list
 circle = None
 count = 0
 
@@ -35,39 +36,108 @@ def create_hexagon(position, radius=34.64, flat_top=False) -> HexagonTile:
 
 def init_units_test(UNITS_NUM=18) -> List[Unit]:
     """Creates a list of unit pieces for the gameboard"""
-    i,j,j1,j2,dd,best_dd,best=None
-    h=960
-    w=1280
+    HALF_UNITS_NUM=int(UNITS_NUM/2)
+    h=480
+    w=640
     rad=30 #34.64
-    border_y = 108
-    border_x = 115
+    border_y = 130
+    border_x = 200
     ti_restart = True
-    circle = [[None for x in range(10)] for x in range(UNITS_NUM)]
-    for unit in range(UNITS_NUM/2):
+    circle = [[0 for x in range(10)] for x in range(UNITS_NUM)]
+    for unit in range(int(UNITS_NUM/2)):
         circle[unit][0]=unit
-        circle[unit+UNITS_NUM/2][0]=unit+UNITS_NUM/2
+        circle[unit+HALF_UNITS_NUM][0]=unit+HALF_UNITS_NUM
         while ti_restart:
             ti_restart=False
-            circle[unit][3]= math.floor((random.randrange(0,4294967295)%960)-(rad*2))+rad
-            circle[unit+UNITS_NUM/2][3]=h-1-circle[unit][3]
-            j1 = circle[unit][3]/(rad*2)
-            j2 = circle[unit+UNITS_NUM/2][3]/(rad*2)
+            num = random.randint(0,67295)%300
+            circle[unit][3]= num-(num%(rad*2))+rad
+            circle[unit+HALF_UNITS_NUM][3]=h-1-circle[unit][3]
+            j1 = int(circle[unit][3]/(rad*2))
+            j2 = int(circle[unit+HALF_UNITS_NUM][3]/(rad*2))
             circle[unit][3]+=border_y
-
-            if not unit:
+            
+            if unit==0:
                 circle[unit][2]=rad
                 if j1&1:
                     ti_restart=True
             else:
                 circle[unit][2]=math.floor((random.randrange(0,4294967295)%((w-rad*2*2)/2))-(rad*2))+rad
-        circle[unit+UNITS_NUM/2][2]=w-1-circle[unit][2]
+        circle[unit+HALF_UNITS_NUM][2]=w-1-int(circle[unit][2])
 
         if j1&1:
             circle[unit][2]+=rad
         if j2&1:
-            circle[unit+UNITS_NUM/2][2]+=rad
+            circle[unit+HALF_UNITS_NUM][2]+=rad
         circle[unit][2]+=border_x
-        circle[unit+UNITS_NUM/2][2]+=border_x
+        circle[unit+HALF_UNITS_NUM][2]+=border_x
+
+        def S2Circle(x,y):
+            tempY=int((y-border_y)/(rad*2))
+            if tempY&1:
+                tempX=(x-rad-border_x)/(rad*2)
+            else:
+                tempX=(x-border_x)/(rad*2)
+            return tempY,tempX
+
+        def Circle2S(x,y):
+            tempY=y
+            tempX=x
+            y=tempY*rad*2+rad+border_x
+            x=tempX*rad*2+rad+border_y
+            if int(tempY)&1:
+                x+=rad
+            return x,y
+
+        circle[unit][2],circle[unit][3]=S2Circle(circle[unit][2],circle[unit][3])
+        circle[unit][2],circle[unit][3]=Circle2S(circle[unit][2],circle[unit][3])
+
+        circle[unit+HALF_UNITS_NUM][2],circle[unit+HALF_UNITS_NUM][3]=S2Circle(circle[unit+HALF_UNITS_NUM][2],circle[unit+HALF_UNITS_NUM][3])
+        circle[unit+HALF_UNITS_NUM][2],circle[unit+HALF_UNITS_NUM][3]=Circle2S(circle[unit+HALF_UNITS_NUM][2],circle[unit+HALF_UNITS_NUM][3])
+
+        circle[unit][4]=0
+        circle[unit+HALF_UNITS_NUM][4]=1
+
+        circle[unit][7]=True
+        circle[unit+HALF_UNITS_NUM][7]=True
+
+        if not unit:
+            circle[unit][6]=LIGHT_CYAN
+            circle[unit+HALF_UNITS_NUM][6]=LIGHT_MAGENTA
+            circle[unit][9]=True
+            circle[unit+HALF_UNITS_NUM][9]=True
+        else:
+            circle[unit][6]=DARK_CYAN
+            circle[unit+HALF_UNITS_NUM][6]=DARK_MAGENTA
+            circle[unit][9]=False
+            circle[unit+HALF_UNITS_NUM][9]=False
+
+    for unit in range(HALF_UNITS_NUM):
+        if circle[unit][9]==True:
+            circle[unit][5]=unit
+        else:
+            best_dd=sys.maxsize
+            for piece in range(HALF_UNITS_NUM):
+                if circle[unit][0]!=circle[piece][0]:
+                    dd=pow(circle[unit][2]-circle[piece][2], 2)+pow(circle[unit][3]-circle[piece][3], 2)
+                    if circle[piece][2]<circle[unit][2] or circle[piece][9] and dd<best_dd:
+                        best_dd=dd
+                        best=piece
+            circle[unit][5]=best
+            circle[unit+HALF_UNITS_NUM][5]=best+HALF_UNITS_NUM
+    num_alive=[HALF_UNITS_NUM]*2
+    new_circle = create_circle(circle[0])
+    print(new_circle)
+    result = [new_circle]
+
+    for unit in range(1,UNITS_NUM):
+        new_circle = create_circle(circle[unit])
+        print(new_circle)
+        result.append(new_circle)
+    
+    return result
+
+def create_circle(circle:list) -> Unit:
+    return Unit(circle[0],(circle[2],circle[3]),circle[2],circle[3],circle[4],circle[5],circle[6],circle[7], 30.0,circle[9])
 
         
 
@@ -83,7 +153,7 @@ def init_units(UNITS_NUM, hexagons) -> List[Unit]:
 def init_hexagons(num_x=17, num_y=14, flat_top=False) -> List[HexagonTile]:
     """Creates a hexaogonal tile map of size num_x * num_y"""
     # pylint: disable=invalid-name
-    #(159,150)
+    #(115,108)
     leftmost_hexagon = create_hexagon(position=(115,108), flat_top=flat_top)
     hexagons = [leftmost_hexagon]
     for x in range(num_y):
@@ -166,8 +236,8 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
                 temp = circle2
         pygame.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
     
-    pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]+10), (origin[0]+10,origin[1]-10),3)
-    pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]-10), (origin[0]+10,origin[1]+10),3)
+    pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]+10), (origin[0]+10,origin[1]-10),2)
+    pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]-10), (origin[0]+10,origin[1]+10),2)
     pygame.draw.line(screen,(255,0,0), (origin[0],origin[1]), (tempUnit.center[0],tempUnit.center[1]),2)
 
     pygame.display.flip()
@@ -205,8 +275,11 @@ def main():
     screen = pygame.display.set_mode((1280, 960))
     clock = pygame.time.Clock()
     hexagons = init_hexagons(flat_top=False)
+    print(hexagons[251].centre)
     #unit_list = init_units(UNITS_NUM=UNITS_NUM)
-    circleUnits = init_units(18, hexagons)
+    circleUnits = init_units_test(18)
+
+    # circleUnits = init_units(18, hexagons)
 
     terminated = False
     while not terminated:

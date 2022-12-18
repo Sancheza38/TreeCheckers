@@ -32,3 +32,6 @@ def init_units(UNITS_NUM=18) -> List[Unit]:
             circle[unit+UNITS_NUM/2].x+=rad
         circle[unit].x+=border_x
         circle[unit+UNITS_NUM/2].x+=border_x
+
+
+# circle[unit][3]= math.floor((random.randrange(0,4294967295)%960)-(rad*2))+rad
