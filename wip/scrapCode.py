@@ -1,6 +1,14 @@
 
 # circle[unit][3]= math.floor((random.randrange(0,4294967295)%960)-(rad*2))+rad
 
+def init_units(UNITS_NUM, hexagons) -> List[Unit]:
+    """Creates a list of unit pieces for the gameboard"""
+    circle1 = Unit(num=1,center=hexagons[1].centre, x=hexagons[1].centre[0], y=hexagons[1].centre[1], player=1, link=2, color=constants.DARK_MAGENTA, alive=True, radius=30, king=True)
+    circle2 = Unit(num=2,center=hexagons[2].centre, x=hexagons[2].centre[0], y=hexagons[2].centre[1], player=1, link=1, color=constants.DARK_MAGENTA, alive=True, radius=30, king=False)
+    circle3 = Unit(num=3,center=hexagons[3].centre, x=hexagons[3].centre[0], y=hexagons[3].centre[1], player=0, link=4, color=constants.DARK_CYAN, alive=True, radius=30, king=True)
+    circle4 = Unit(num=4,center=hexagons[4].centre, x=hexagons[4].centre[0], y=hexagons[4].centre[1], player=0, link=3, color=constants.DARK_CYAN, alive=True, radius=30, king=False)
+    circleUnits = [circle1, circle2, circle3, circle4]
+    return circleUnits
 
 # original method of initializing units found in TempleOS
 def init_units_test(UNITS_NUM=18) -> List[Unit]:
