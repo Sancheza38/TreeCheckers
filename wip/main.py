@@ -102,9 +102,8 @@ def init_units_test(UNITS_NUM, hexagons) -> List[Unit]:
     return result
 
 def create_circle(circle:list) -> Unit:
-    return Unit(circle[0],(circle[2],circle[3]),circle[2],circle[3],circle[4],circle[5],circle[6],circle[7], 30.0,circle[9])
+    return Unit(circle[0],circle[2],circle[3],circle[4],circle[5],circle[6],circle[7], 30.0,circle[9])
 
-        
 
 def init_units(UNITS_NUM, hexagons) -> List[Unit]:
     """Creates a list of unit pieces for the gameboard"""
@@ -169,12 +168,11 @@ def render(screen, hexagons, circleUnits):
 
 def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin):
     """Renders hexagons and selected unit on the screen"""
-    start_position=list(range(UNITS_NUM))
-    current_position=list(range(UNITS_NUM))
+    start_position,current_position=list(range(UNITS_NUM)),list(range(UNITS_NUM))
     screen.fill(current_player[0])
     screen.blit(current_player[2],(4,5))
+    start_position = origin
     for circle in circleUnits:
-        start_position[circle.num] = (circle.x, circle.y)
         current_position[circle.num] = circle.center
     for hexagon in hexagons:
         hexagon.render(screen)
@@ -187,12 +185,12 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
     ]
     for hexagon in colliding_hexagons:
         for circle in circleUnits:
-            if  circle==tempUnit and distance < 180 and math.dist(start_position[circle.num], hexagon.centre) < 180:
-                distance+= math.dist(start_position[circle.num], hexagon.centre)
-                circle.center=hexagon.centre
+            if  circle==tempUnit and distance < 120 and math.dist(start_position, hexagon.centre) < 120:
+                distance+= math.dist(start_position, hexagon.centre)
+                circle.updatePosition(hexagon.centre)
                 current_position[circle.num] = circle.center
                 
-            else: circle.center=current_position[circle.num]
+            else: circle.updatePosition(current_position[circle.num])
             circle.render(screen)
 
     for circle in circleUnits: circle.render(screen)
@@ -204,7 +202,7 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
     
     pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]+10), (origin[0]+10,origin[1]-10),2)
     pygame.draw.line(screen,(255,0,0), (origin[0]-10,origin[1]-10), (origin[0]+10,origin[1]+10),2)
-    pygame.draw.line(screen,(255,0,0), (origin[0],origin[1]), (tempUnit.center[0],tempUnit.center[1]),2)
+    pygame.draw.line(screen,(255,0,0), origin, (tempUnit.center[0],tempUnit.center[1]),2)
 
     pygame.display.flip()
     return
@@ -243,10 +241,7 @@ def main():
     hexagons = init_hexagons(flat_top=False)
     print(hexagons[0].centre)
     print(hexagons[7].centre)
-    #unit_list = init_units(UNITS_NUM=UNITS_NUM)
     circleUnits = init_units_test(18, hexagons)
-
-    # circleUnits = init_units(18, hexagons)
 
     terminated = False
     while not terminated:
