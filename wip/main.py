@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-import os
 import sys 
 import math
 import random
@@ -32,8 +29,8 @@ def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
 
         circle[unit][0],circle[unit+HALF_UNITS_NUM][0]=unit,unit+HALF_UNITS_NUM
         while ti_restart:
-            
             ti_restart=False
+
             index = random.randint(0,251)
             circle[unit][3],circle[unit][4]= right_side[index]
             circle[unit+HALF_UNITS_NUM][3],circle[unit+HALF_UNITS_NUM][4]= left_side[index]
@@ -43,12 +40,15 @@ def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
             elif right_side[index][0] > 535:
                 ti_restart=True
 
+        # designate a player to each unit
         circle[unit][1]=0
         circle[unit+HALF_UNITS_NUM][1]=1
 
+        # set .alive=True to each unit
         circle[unit][5]=True
         circle[unit+HALF_UNITS_NUM][5]=True
 
+        # set one unit on each side as king=True, and the rest as king=False
         if not unit:
             circle[unit][6]=True
             circle[unit+HALF_UNITS_NUM][6]=True
@@ -56,23 +56,25 @@ def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
             circle[unit][6]=False
             circle[unit+HALF_UNITS_NUM][6]=False
 
+    # create the links between units of the same side.
     for unit in range(HALF_UNITS_NUM):
-        if circle[unit][6]==True:
-            circle[unit][2]=unit
-            circle[unit+HALF_UNITS_NUM][2]=unit+HALF_UNITS_NUM
-        else:
+        if not circle[unit][6]:
             best_dd=sys.maxsize
             for piece in range(HALF_UNITS_NUM):
-                if circle[unit][0]!=circle[piece][0]:
+                if unit != piece:
                     dd=pow(circle[unit][3]-circle[piece][3], 2)+pow(circle[unit][4]-circle[piece][4], 2)
-                    if circle[piece][3]<circle[unit][3] or circle[piece][6] and dd<best_dd:
+                    if (circle[piece][3]<circle[unit][3] or circle[piece][6]) and dd<best_dd:
                         best_dd=dd
                         best=piece
             circle[unit][2]=best
             circle[unit+HALF_UNITS_NUM][2]=best+HALF_UNITS_NUM
+        else:
+            circle[unit][2]=99
+            circle[unit+HALF_UNITS_NUM][2]=98
     
     num_alive=[HALF_UNITS_NUM]*2
     
+    # create and return a list of class Unit
     result = []
     for unit in range(UNITS_NUM):
         new_circle = Unit(*circle[unit])
@@ -114,21 +116,26 @@ def render(screen, hexagons, circleUnits):
     """Renders hexagons and units on the screen"""
     screen.fill(current_player.color)
     screen.blit(current_player.render,(4,5))
-    temp=None
+
     for hexagon in hexagons:
         hexagon.render(screen)
-    for circle in circleUnits:
-        for circle2 in circleUnits:
-            if circle2.link == circle.num:
-                temp = circle2
-        pg.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
-        circle.render(screen)
-    for circle in circleUnits:
 
-        for circle2 in circleUnits:
-            if not circle2.king and circle2.link == circle.num:
-                temp = circle2
-        pg.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
+    alive = []
+    for circle in circleUnits:
+        if circle.alive:
+            circle.render(screen)
+            alive.append(circle)
+
+    midpoints = []
+    for circle in alive:
+        if not circle.king:
+            pg.draw.line(screen,constants.BLACK,(circle.center),circleUnits[circle.link].center,2)
+            mid = ((circle.x+circleUnits[circle.link].x+2.2)/2,(circle.y+circleUnits[circle.link].y+2)/2)
+            midpoints.append(mid)
+    
+    for point in midpoints:
+        pg.draw.circle(screen,constants.BLACK,point,7.0)
+
     pg.display.flip()
 
 def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin):
@@ -147,22 +154,29 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
     colliding_hexagons = [
         hexagon for hexagon in hexagons if hexagon.collide_with_point(mouse_pos)
     ]
+
+    alive = []
+    for circle in circleUnits:
+        if circle.alive:
+            circle.render(screen)
+            alive.append(circle)
     for hexagon in colliding_hexagons:
         for circle in circleUnits:
             if  circle==tempUnit and distance < 120 and math.dist(start_position, hexagon.centre) < 120:
                 distance+= math.dist(start_position, hexagon.centre)
                 circle.updatePosition(hexagon.centre)
                 current_position[circle.num] = circle.center
-                
-            else: circle.updatePosition(current_position[circle.num])
-            circle.render(screen)
+                circle.render(screen)
 
-    for circle in circleUnits: circle.render(screen)
-    for circle in circleUnits:
-        for circle2 in circleUnits:
-            if circle2.link == circle.num:
-                temp = circle2
-        pg.draw.line(screen,(0,0,0),(circle.center),(temp.center),2)
+    midpoints = []
+    for circle in alive:
+        if not circle.king:
+            pg.draw.line(screen,constants.BLACK,(circle.center),circleUnits[circle.link].center,2)
+            mid = ((circle.x+circleUnits[circle.link].x+2.2)/2,(circle.y+circleUnits[circle.link].y+2)/2)
+            midpoints.append(mid)
+    
+    for point in midpoints:
+        pg.draw.circle(screen,constants.BLACK,point,7.0)
     
     pg.draw.line(screen, constants.RED, (origin[0]-10,origin[1]+10), (origin[0]+10,origin[1]-10),2)
     pg.draw.line(screen, constants.RED, (origin[0]-10,origin[1]-10), (origin[0]+10,origin[1]+10),2)
@@ -189,13 +203,32 @@ def changePlayer(tempUnit):
     tempUnit.x,tempUnit.y = tempUnit.center
     current_player, next_player = next_player, current_player
 
+def kill_check(tempUnit,circleUnits):
+    found:bool =True
+    for circle in circleUnits:
+        if circle.player!=tempUnit.player and circle.alive and not circle.king:
+            x2=int(circle.x+circleUnits[circle.link].x)>>1
+            y2=int(circle.y+circleUnits[circle.link].y)>>1
+            dd=pow(x2-tempUnit.x,2)+pow(y2-tempUnit.y,2)
+
+            if dd<=(constants.RAD+2)*(constants.RAD+2):
+                circle.alive=False
+
+            while found:
+                found=False
+
+                for unit in circleUnits:
+                    if unit.alive and unit.player!=tempUnit.player and not unit.king and not circleUnits[unit.link].alive:
+                        found=True
+                        unit.alive=False            
+    return
+    
 def main():
     """Main function"""
     origin: tuple
     distance = 0
     tempUnit = None
     mouse_down = False
-    show_start=False
     screen = pg.display.set_mode((1280, 960))
     clock = pg.time.Clock()
     hexagons = init_hexagons(flat_top=False)
@@ -211,12 +244,11 @@ def main():
                 tempUnit=UnitFind(circleUnits)
                 origin = tempUnit.center
                 mouse_down = True
-                show_start=True
 
             elif event.type == pg.MOUSEBUTTONUP:
                 mouse_down=False
                 distance=0
-                show_start=False
+                kill_check(tempUnit, circleUnits)
                 changePlayer(tempUnit)
                 origin=None
                 tempUnit=None

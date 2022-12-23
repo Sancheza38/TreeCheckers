@@ -31,8 +31,6 @@ class Unit:
         """Updates unit position"""
         self.x,self.y=x_y_pair
 
-   
-
     def render(self, screen) -> None:
         """Renders the hexagon on the screen"""
         x,y = self.center
