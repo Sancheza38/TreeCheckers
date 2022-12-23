@@ -1,98 +1,99 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jan 23 13:50:07 2022
-
-@author: richa
-"""
-import sys
-import os
-import random
-from typing import List
-from typing import Tuple
-
-import pygame
-from hexagon import FlatTopHexagonTile
-from hexagon import HexagonTile
-from Unit import Unit
+import sys 
 import math
-pygame.init()
+import random
+import pygame as pg
+import constants
+from typing import List
+from hexagon import HexagonTile
+from unit import Unit
 
-_FONT_PATH = os.path.join("wip","ModernDOS8x8.ttf")
-font = pygame.font.Font(_FONT_PATH, 31)
+pg.init()
 
-# pylint: disable=no-member
-LIGHT_CYAN = (85, 255, 255)
-LIGHT_MAGENTA = (255, 85, 255)
-DARK_CYAN = (0, 170, 170)
-DARK_MAGENTA = (170, 0, 170)
-current_player = (LIGHT_CYAN, 0, font.render("Player 1", False, DARK_CYAN))
-cur_player = 0
-nxt_player = 1
-next_player = (LIGHT_MAGENTA, 1, font.render("Player 2", False, DARK_MAGENTA))
-UNITS_NUM = 18
-circle = None
-count = 0
+current_player = constants.PLAYER_ONE
+next_player = constants.PLAYER_TWO
 
-# player = font.render("Player 1", False, DARK_CYAN)
-# nextPlayer = font.render("Player 2", False, DARK_MAGENTA)
-
-def create_hexagon(position, radius=34.64, flat_top=False) -> HexagonTile:
+def create_hexagon(position, radius=34.64) -> HexagonTile:
     """Creates a hexagon tile at the specified position"""
-    class_ = FlatTopHexagonTile if flat_top else HexagonTile
-    return class_(radius, position, colour=(255, 255, 255))
+    class_ = HexagonTile
+    return class_(radius, position, colour=constants.WHITE)
 
-def get_random_colour(min_=254, max_=255) -> Tuple[int, ...]:
-    """Returns a random RGB colour with each component between min_ and max_"""
-    return tuple(random.choices(list(range(min_, max_)), k=3))
-
-def init_units(UNITS_NUM=18) -> List[Unit]:
+def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
     """Creates a list of unit pieces for the gameboard"""
-    i,j,j1,j2,dd,best_dd,best = None
-    h=960
-    w=1280
-    rad=34.64
-    border_y = 108
-    border_x = 115
-    circle = Unit[UNITS_NUM]
-    for unit in range(UNITS_NUM/2):
-        circle[unit].num=unit
-        circle[unit+UNITS_NUM/2].num=unit+UNITS_NUM/2
-        def ti_restart():
-            circle[unit].y= math.floor((random.randrange(0,4294967295)%960)-(34.64*2))+34.64
-            circle[unit+UNITS_NUM/2].y=h-1-circle[unit].y
-            j1 = circle[unit].y/(rad*2)
-            j2 = circle[unit+UNITS_NUM/2].y/(rad*2)
-            circle[unit].y+=border_y
+    HALF_UNITS_NUM=int(UNITS_NUM/2)
+    right_side = [hexagon.centre for hexagon in hexagons]
+    left_side = [item for item in reversed(right_side)]
 
-            if not unit:
-                circle[unit].x=rad
-                if j1&1:
-                    ti_restart()
-            else:
-                circle[unit].x=math.floor((random.randrange(0,4294967295)%((w-rad*2*2)/2))-(34.64*2))+34.64
-        
-        ti_restart()
-        circle[unit+UNITS_NUM/2].x=w-1-circle[unit].x
-        if j1&1:
-            circle[unit].x+=rad
-        if j2&1:
-            circle[unit+UNITS_NUM/2].x+=rad
-        circle[unit].x+=border_x
-        circle[unit+UNITS_NUM/2].x+=border_x
+    circle = [[0 for x in range(7)] for x in range(UNITS_NUM)]
+    for unit in range(HALF_UNITS_NUM):
+        ti_restart = True
 
+        circle[unit][0],circle[unit+HALF_UNITS_NUM][0]=unit,unit+HALF_UNITS_NUM
+        while ti_restart:
+            ti_restart=False
+
+            index = random.randint(0,251)
+            circle[unit][3],circle[unit][4]= right_side[index]
+            circle[unit+HALF_UNITS_NUM][3],circle[unit+HALF_UNITS_NUM][4]= left_side[index]
+
+            if not unit and right_side[index][0] > 115:
+                ti_restart=True
+            elif right_side[index][0] > 535:
+                ti_restart=True
+
+        # designate a player to each unit
+        circle[unit][1]=0
+        circle[unit+HALF_UNITS_NUM][1]=1
+
+        # set .alive=True to each unit
+        circle[unit][5]=True
+        circle[unit+HALF_UNITS_NUM][5]=True
+
+        # set one unit on each side as king=True, and the rest as king=False
+        if not unit:
+            circle[unit][6]=True
+            circle[unit+HALF_UNITS_NUM][6]=True
+        else:
+            circle[unit][6]=False
+            circle[unit+HALF_UNITS_NUM][6]=False
+
+    # create the links between units of the same side.
+    for unit in range(HALF_UNITS_NUM):
+        if not circle[unit][6]:
+            best_dd=sys.maxsize
+            for piece in range(HALF_UNITS_NUM):
+                if unit != piece:
+                    dd=pow(circle[unit][3]-circle[piece][3], 2)+pow(circle[unit][4]-circle[piece][4], 2)
+                    if (circle[piece][3]<circle[unit][3] or circle[piece][6]) and dd<best_dd:
+                        best_dd=dd
+                        best=piece
+            circle[unit][2]=best
+            circle[unit+HALF_UNITS_NUM][2]=best+HALF_UNITS_NUM
+        else:
+            circle[unit][2]=99
+            circle[unit+HALF_UNITS_NUM][2]=98
+    
+    num_alive=[HALF_UNITS_NUM]*2
+    
+    # create and return a list of class Unit
+    result = []
+    for unit in range(UNITS_NUM):
+        new_circle = Unit(*circle[unit])
+        result.append(new_circle)
+    
+    return result
 
 def init_hexagons(num_x=17, num_y=14, flat_top=False) -> List[HexagonTile]:
     """Creates a hexaogonal tile map of size num_x * num_y"""
     # pylint: disable=invalid-name
-    #(159,150)
-    leftmost_hexagon = create_hexagon(position=(115,108), flat_top=flat_top)
+    #(115,108)
+    leftmost_hexagon = create_hexagon(position=(115,108))
     hexagons = [leftmost_hexagon]
     for x in range(num_y):
         if x:
             # alternate between bottom left and bottom right vertices of hexagon above
             index = 4 if x % 2 == 1 or flat_top else 2
             position = leftmost_hexagon.vertices[index]
-            leftmost_hexagon = create_hexagon(position, flat_top=flat_top)
+            leftmost_hexagon = create_hexagon(position)
             hexagons.append(leftmost_hexagon)
 
         # place hexagons to the left of leftmost hexagon, with equal y-values.
@@ -106,136 +107,160 @@ def init_hexagons(num_x=17, num_y=14, flat_top=False) -> List[HexagonTile]:
                     position = (x + hexagon.radius * 3 / 2, y + hexagon.minimal_radius)
             else:
                 position = (x + hexagon.minimal_radius * 2, y)
-            hexagon = create_hexagon(position, flat_top=flat_top)
+            hexagon = create_hexagon(position)
             hexagons.append(hexagon)
 
     return hexagons
 
-
 def render(screen, hexagons, circleUnits):
-    """Renders hexagons on the screen"""
-    screen.fill(current_player[0])
-    screen.blit(current_player[2],(4,5))
+    """Renders hexagons and units on the screen"""
+    screen.fill(current_player.color)
+    screen.blit(current_player.render,(4,5))
 
     for hexagon in hexagons:
         hexagon.render(screen)
-        hexagon.render_highlight(screen, border_colour=(0, 0, 0))
-    for circle in circleUnits:
-        circle.render(screen)
-    pygame.display.flip()
 
-def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance):
-    """Renders hexagons on the screen"""
-    global count
-    start_position=[0,1,2,3,4]
-    current_position=[0,1,2,3,4]
-    screen.fill(current_player[0])
-    screen.blit(current_player[2],(4,5))
+    alive = []
     for circle in circleUnits:
-        start_position[circle.num] = (circle.x, circle.y)
+        if circle.alive:
+            circle.render(screen)
+            alive.append(circle)
+
+    midpoints = []
+    for circle in alive:
+        if not circle.king:
+            pg.draw.line(screen,constants.BLACK,(circle.center),circleUnits[circle.link].center,2)
+            mid = ((circle.x+circleUnits[circle.link].x+2.2)/2,(circle.y+circleUnits[circle.link].y+2)/2)
+            midpoints.append(mid)
+    
+    for point in midpoints:
+        pg.draw.circle(screen,constants.BLACK,point,7.0)
+
+    pg.display.flip()
+
+def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin):
+    """Renders hexagons and selected unit on the screen"""
+    start_position,current_position=list(range(constants.UNITS_NUM)),list(range(constants.UNITS_NUM))
+    screen.fill(current_player.color)
+    screen.blit(current_player.render,(4,5))
+    start_position = origin
+    for circle in circleUnits:
         current_position[circle.num] = circle.center
     for hexagon in hexagons:
         hexagon.render(screen)
-        hexagon.render_highlight(screen, border_colour=(0, 0, 0))
 
     # draw borders around colliding hexagons and neighbours
-    mouse_pos = pygame.mouse.get_pos()
+    mouse_pos = pg.mouse.get_pos()
     colliding_hexagons = [
         hexagon for hexagon in hexagons if hexagon.collide_with_point(mouse_pos)
     ]
-    for hexagon in colliding_hexagons:
-        hexagon.render_highlight(screen, border_colour=(255, 255, 255))
-        #hexagon.colour=current_player[0]
-        for circle in circleUnits:
-            if  circle==tempUnit and distance < 130 and math.dist(start_position[circle.num], hexagon.centre) < 130:
-                count == 1
-                distance+= math.dist(start_position[circle.num], hexagon.centre)
-                circle.center=hexagon.centre
-                current_position[circle.num] = circle.center
-                # circle.render(screen)
-            else:
-                # for circle in circleUnits:
-                circle.center=current_position[circle.num]
-                # circle.render(screen)
-            circle.render(screen)
 
+    alive = []
     for circle in circleUnits:
-        circle.render(screen)
-    pygame.display.flip()
+        if circle.alive:
+            circle.render(screen)
+            alive.append(circle)
+    for hexagon in colliding_hexagons:
+        for circle in circleUnits:
+            if  circle==tempUnit and distance < 120 and math.dist(start_position, hexagon.centre) < 120:
+                distance+= math.dist(start_position, hexagon.centre)
+                circle.updatePosition(hexagon.centre)
+                current_position[circle.num] = circle.center
+                circle.render(screen)
+
+    midpoints = []
+    for circle in alive:
+        if not circle.king:
+            pg.draw.line(screen,constants.BLACK,(circle.center),circleUnits[circle.link].center,2)
+            mid = ((circle.x+circleUnits[circle.link].x+2.2)/2,(circle.y+circleUnits[circle.link].y+2)/2)
+            midpoints.append(mid)
+    
+    for point in midpoints:
+        pg.draw.circle(screen,constants.BLACK,point,7.0)
+    
+    pg.draw.line(screen, constants.RED, (origin[0]-10,origin[1]+10), (origin[0]+10,origin[1]-10),2)
+    pg.draw.line(screen, constants.RED, (origin[0]-10,origin[1]-10), (origin[0]+10,origin[1]+10),2)
+    pg.draw.line(screen, constants.RED, origin, (tempUnit.center[0],tempUnit.center[1]),2)
+
+    pg.display.flip()
     return
 
 def UnitFind(circleUnits):
-    i=None
-    dd=None
+    """finds the best suited allied unit to select, based on mouse position when pressed down"""
     best_dd=sys.maxsize
-    result=None
-    mouse_pos = pygame.mouse.get_pos()
+    mouse_pos = pg.mouse.get_pos()
     for circle in circleUnits:
-        if circle.player==current_player[1] and circle.alive:
+        if circle.player==current_player.number and circle.alive:
             dd=pow(circle.x-mouse_pos[0], 2)+pow(circle.y-mouse_pos[1], 2)
             if dd<best_dd:
                 best_dd=dd
                 result=circle
     return result
 
-
-def changePlayer():
+def changePlayer(tempUnit):
+    """finalize current turn action and switch players"""
     global current_player, next_player
+    tempUnit.x,tempUnit.y = tempUnit.center
     current_player, next_player = next_player, current_player
 
+def kill_check(tempUnit,circleUnits):
+    found:bool =True
+    for circle in circleUnits:
+        if circle.player!=tempUnit.player and circle.alive and not circle.king:
+            x2=int(circle.x+circleUnits[circle.link].x)>>1
+            y2=int(circle.y+circleUnits[circle.link].y)>>1
+            dd=pow(x2-tempUnit.x,2)+pow(y2-tempUnit.y,2)
 
+            if dd<=(constants.RAD+2)*(constants.RAD+2):
+                circle.alive=False
+
+            while found:
+                found=False
+
+                for unit in circleUnits:
+                    if unit.alive and unit.player!=tempUnit.player and not unit.king and not circleUnits[unit.link].alive:
+                        found=True
+                        unit.alive=False            
+    return
+    
 def main():
     """Main function"""
+    origin: tuple
     distance = 0
     tempUnit = None
-    pygame.init()
     mouse_down = False
-    show_start=False
-    screen = pygame.display.set_mode((1280, 960))
-    clock = pygame.time.Clock()
+    screen = pg.display.set_mode((1280, 960))
+    clock = pg.time.Clock()
     hexagons = init_hexagons(flat_top=False)
-    #unit_list = init_units(UNITS_NUM=UNITS_NUM)
+    circleUnits = init_units(hexagons)
 
-    circle1 = Unit(num=1,center=hexagons[1].centre, x=hexagons[1].centre[0], y=hexagons[1].centre[1], player=1, link=2, color=DARK_MAGENTA, alive=True, radius=30, king=True)
-    circle2 = Unit(num=2,center=hexagons[2].centre, x=hexagons[2].centre[0], y=hexagons[2].centre[1], player=1, link=1, color=DARK_MAGENTA, alive=True, radius=30, king=False)
-    circle3 = Unit(num=3,center=hexagons[3].centre, x=hexagons[3].centre[0], y=hexagons[3].centre[1], player=0, link=4, color=DARK_CYAN, alive=True, radius=30, king=True)
-    circle4 = Unit(num=4,center=hexagons[4].centre, x=hexagons[4].centre[0], y=hexagons[4].centre[1], player=0, link=3, color=DARK_CYAN, alive=True, radius=30, king=False)
-
-    circleUnits = [circle1, circle2, circle3, circle4]
     terminated = False
     while not terminated:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
                 terminated = True
 
-            elif not tempUnit and event.type == pygame.MOUSEBUTTONDOWN:
+            elif not tempUnit and event.type == pg.MOUSEBUTTONDOWN:
                 tempUnit=UnitFind(circleUnits)
+                origin = tempUnit.center
                 mouse_down = True
-                show_start=True
 
-            elif event.type == pygame.MOUSEBUTTONUP:
-                mouse_down = False
-                changePlayer()
-                for circle in circleUnits:
-                    distance = 0
-                    newX, newY = circle.center[0], circle.center[1]
-                    circle.x=newX
-                    circle.y=newY
-                show_start=False
+            elif event.type == pg.MOUSEBUTTONUP:
+                mouse_down=False
+                distance=0
+                kill_check(tempUnit, circleUnits)
+                changePlayer(tempUnit)
+                origin=None
                 tempUnit=None
 
-
-        for hexagon in hexagons:
-            hexagon.update()
-
         if tempUnit!=None and mouse_down:
-            count = render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance)
+            render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
           
         else:
             render(screen, hexagons, circleUnits)
 
         clock.tick(50)
-    pygame.display.quit()
+    pg.display.quit()
 
 
 if __name__ == "__main__":
