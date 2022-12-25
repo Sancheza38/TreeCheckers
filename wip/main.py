@@ -204,7 +204,16 @@ def changePlayer(tempUnit):
     current_player, next_player = next_player, current_player
 
 def kill_check(tempUnit,circleUnits):
-    found:bool =True
+    found:bool
+
+    def verify_links():
+        found=False
+        for unit in circleUnits:
+            if unit.alive and unit.player!=tempUnit.player and not unit.king and not circleUnits[unit.link].alive:
+                found=True
+                unit.alive=False
+        return found
+
     for circle in circleUnits:
         if circle.player!=tempUnit.player and circle.alive and not circle.king:
             x2=int(circle.x+circleUnits[circle.link].x)>>1
@@ -213,14 +222,11 @@ def kill_check(tempUnit,circleUnits):
 
             if dd<=(constants.RAD+2)*(constants.RAD+2):
                 circle.alive=False
+            
+            found = verify_links()
 
             while found:
-                found=False
-
-                for unit in circleUnits:
-                    if unit.alive and unit.player!=tempUnit.player and not unit.king and not circleUnits[unit.link].alive:
-                        found=True
-                        unit.alive=False            
+                found = verify_links()
     return
     
 def main():
