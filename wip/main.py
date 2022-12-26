@@ -11,8 +11,9 @@ pg.init()
 
 current_player = constants.PLAYER_ONE
 next_player = constants.PLAYER_TWO
+num_alive = constants.NUM_ALIVE
 
-def create_hexagon(position, radius=34.64) -> HexagonTile:
+def create_hexagon(position, radius=constants.CIRCUMCIRCLE_RAD) -> HexagonTile:
     """Creates a hexagon tile at the specified position"""
     class_ = HexagonTile
     return class_(radius, position, colour=constants.WHITE)
@@ -25,20 +26,26 @@ def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
 
     circle = [[0 for x in range(7)] for x in range(UNITS_NUM)]
     for unit in range(HALF_UNITS_NUM):
-        ti_restart = True
-
+        
         circle[unit][0],circle[unit+HALF_UNITS_NUM][0]=unit,unit+HALF_UNITS_NUM
-        while ti_restart:
-            ti_restart=False
 
-            index = random.randint(0,251)
-            circle[unit][3],circle[unit][4]= right_side[index]
-            circle[unit+HALF_UNITS_NUM][3],circle[unit+HALF_UNITS_NUM][4]= left_side[index]
+        if not unit:
+            pick = random.randint(0,constants.TILE_SIZE[1]-1)*constants.TILE_SIZE[0]
+            circle[unit][3],circle[unit][4]= right_side[pick]
+            circle[unit+HALF_UNITS_NUM][3],circle[unit+HALF_UNITS_NUM][4]= left_side[pick]
 
-            if not unit and right_side[index][0] > 115:
-                ti_restart=True
-            elif right_side[index][0] > 535:
-                ti_restart=True
+        else:
+            ti_restart = True
+            while ti_restart:
+                ti_restart=False
+
+                # index = int(random.randint(0,sys.maxsize)%251)
+                index = random.randint(0,constants.TILE_SIZE[0]*constants.TILE_SIZE[1]-1)
+                circle[unit][3],circle[unit][4]= right_side[index]
+                circle[unit+HALF_UNITS_NUM][3],circle[unit+HALF_UNITS_NUM][4]= left_side[index]
+
+                if right_side[index][0] > 535:
+                    ti_restart=True
 
         # designate a player to each unit
         circle[unit][1]=0
@@ -69,8 +76,8 @@ def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
             circle[unit][2]=best
             circle[unit+HALF_UNITS_NUM][2]=best+HALF_UNITS_NUM
         else:
-            circle[unit][2]=99
-            circle[unit+HALF_UNITS_NUM][2]=98
+            circle[unit][2]=-1
+            circle[unit+HALF_UNITS_NUM][2]=-1
     
     num_alive=[HALF_UNITS_NUM]*2
     
@@ -82,11 +89,9 @@ def init_units(hexagons, UNITS_NUM=constants.UNITS_NUM) -> List[Unit]:
     
     return result
 
-def init_hexagons(num_x=17, num_y=14, flat_top=False) -> List[HexagonTile]:
+def init_hexagons(num_x=constants.TILE_SIZE[0]-1, num_y=constants.TILE_SIZE[1], flat_top=False) -> List[HexagonTile]:
     """Creates a hexaogonal tile map of size num_x * num_y"""
-    # pylint: disable=invalid-name
-    #(115,108)
-    leftmost_hexagon = create_hexagon(position=(115,108))
+    leftmost_hexagon = create_hexagon(position=constants.GAME_BORDER)
     hexagons = [leftmost_hexagon]
     for x in range(num_y):
         if x:
@@ -126,6 +131,8 @@ def render(screen, hexagons, circleUnits):
             circle.render(screen)
             alive.append(circle)
 
+    
+
     midpoints = []
     for circle in alive:
         if not circle.king:
@@ -135,6 +142,9 @@ def render(screen, hexagons, circleUnits):
     
     for point in midpoints:
         pg.draw.circle(screen,constants.BLACK,point,7.0)
+    
+    if num_alive[0]==1 or num_alive[1]==1:
+        screen.blit(constants.GAME_OVER,(constants.WIDTH/2-70, constants.HEIGHT/2))
 
     pg.display.flip()
 
@@ -162,7 +172,7 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
             alive.append(circle)
     for hexagon in colliding_hexagons:
         for circle in circleUnits:
-            if  circle==tempUnit and distance < 120 and math.dist(start_position, hexagon.centre) < 120:
+            if  circle==tempUnit and distance < 145 and math.dist(start_position, hexagon.centre) < 145:
                 distance+= math.dist(start_position, hexagon.centre)
                 circle.updatePosition(hexagon.centre)
                 current_position[circle.num] = circle.center
@@ -204,7 +214,17 @@ def changePlayer(tempUnit):
     current_player, next_player = next_player, current_player
 
 def kill_check(tempUnit,circleUnits):
-    found:bool =True
+    found:bool
+
+    def verify_links():
+        found=False
+        for unit in circleUnits:
+            if unit.alive and unit.player!=tempUnit.player and not unit.king and not circleUnits[unit.link].alive:
+                found=True
+                unit.alive=False
+                num_alive[tempUnit.player] -= 1
+        return found
+
     for circle in circleUnits:
         if circle.player!=tempUnit.player and circle.alive and not circle.king:
             x2=int(circle.x+circleUnits[circle.link].x)>>1
@@ -213,14 +233,12 @@ def kill_check(tempUnit,circleUnits):
 
             if dd<=(constants.RAD+2)*(constants.RAD+2):
                 circle.alive=False
+                num_alive[tempUnit.player] -= 1
+            
+            found = verify_links()
 
             while found:
-                found=False
-
-                for unit in circleUnits:
-                    if unit.alive and unit.player!=tempUnit.player and not unit.king and not circleUnits[unit.link].alive:
-                        found=True
-                        unit.alive=False            
+                found = verify_links()
     return
     
 def main():
@@ -229,7 +247,8 @@ def main():
     distance = 0
     tempUnit = None
     mouse_down = False
-    screen = pg.display.set_mode((1280, 960))
+    game_over = False
+    screen = pg.display.set_mode((constants.WIDTH, constants.HEIGHT))
     clock = pg.time.Clock()
     hexagons = init_hexagons(flat_top=False)
     circleUnits = init_units(hexagons)
@@ -239,6 +258,8 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 terminated = True
+            elif num_alive[0]==1 or num_alive[1]==1:
+                game_over = True
 
             elif not tempUnit and event.type == pg.MOUSEBUTTONDOWN:
                 tempUnit=UnitFind(circleUnits)
@@ -253,7 +274,7 @@ def main():
                 origin=None
                 tempUnit=None
 
-        if tempUnit!=None and mouse_down:
+        if not game_over and tempUnit!=None and mouse_down:
             render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
           
         else:
