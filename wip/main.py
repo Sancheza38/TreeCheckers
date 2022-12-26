@@ -148,14 +148,11 @@ def render(screen, hexagons, circleUnits):
 
     pg.display.flip()
 
-def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin):
+def render_mouse_down(screen, hexagons, circleUnits, tempUnit, origin):
     """Renders hexagons and selected unit on the screen"""
-    start_position,current_position=list(range(constants.UNITS_NUM)),list(range(constants.UNITS_NUM))
+    start_position=origin
     screen.fill(current_player.color)
     screen.blit(current_player.render,(4,5))
-    start_position = origin
-    for circle in circleUnits:
-        current_position[circle.num] = circle.center
     for hexagon in hexagons:
         hexagon.render(screen)
 
@@ -172,10 +169,10 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
             alive.append(circle)
     for hexagon in colliding_hexagons:
         for circle in circleUnits:
-            if  circle==tempUnit and distance < 145 and math.dist(start_position, hexagon.centre) < 145:
-                distance+= math.dist(start_position, hexagon.centre)
+            if  circle==tempUnit and math.dist(start_position, hexagon.centre) < 145:
+                # distance = math.dist(start_position, hexagon.centre)
+                # print(distance)
                 circle.updatePosition(hexagon.centre)
-                current_position[circle.num] = circle.center
                 circle.render(screen)
 
     midpoints = []
@@ -193,7 +190,6 @@ def render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
     pg.draw.line(screen, constants.RED, origin, (tempUnit.center[0],tempUnit.center[1]),2)
 
     pg.display.flip()
-    return
 
 def UnitFind(circleUnits):
     """finds the best suited allied unit to select, based on mouse position when pressed down"""
@@ -210,7 +206,6 @@ def UnitFind(circleUnits):
 def changePlayer(tempUnit):
     """finalize current turn action and switch players"""
     global current_player, next_player
-    tempUnit.x,tempUnit.y = tempUnit.center
     current_player, next_player = next_player, current_player
 
 def kill_check(tempUnit,circleUnits):
@@ -239,12 +234,10 @@ def kill_check(tempUnit,circleUnits):
 
             while found:
                 found = verify_links()
-    return
     
 def main():
     """Main function"""
     origin: tuple
-    distance = 0
     tempUnit = None
     mouse_down = False
     game_over = False
@@ -268,14 +261,13 @@ def main():
 
             elif event.type == pg.MOUSEBUTTONUP:
                 mouse_down=False
-                distance=0
                 kill_check(tempUnit, circleUnits)
                 changePlayer(tempUnit)
                 origin=None
                 tempUnit=None
 
         if not game_over and tempUnit!=None and mouse_down:
-            render_mouse_down(screen, hexagons, circleUnits, tempUnit, distance, origin)
+            render_mouse_down(screen, hexagons, circleUnits, tempUnit, origin)
           
         else:
             render(screen, hexagons, circleUnits)
