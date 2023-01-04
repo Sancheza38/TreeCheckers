@@ -131,8 +131,6 @@ def render(screen, hexagons, circleUnits):
             circle.render(screen)
             alive.append(circle)
 
-    
-
     midpoints = []
     for circle in alive:
         if not circle.king:
