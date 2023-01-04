@@ -2,6 +2,7 @@ import pygame as pg
 from typing import Tuple
 from dataclasses import dataclass
 import constants
+
 @dataclass
 class Unit:
     """Unit class"""
@@ -27,7 +28,7 @@ class Unit:
             else: 
                 self.color = constants.DARK_MAGENTA
 
-    def updatePosition(self,x_y_pair):
+    def updatePosition(self,x_y_pair) -> None:
         """Updates unit position"""
         self.x,self.y=x_y_pair
 
