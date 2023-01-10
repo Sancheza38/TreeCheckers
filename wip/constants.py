@@ -3,13 +3,17 @@ import pygame as pg
 import math
 import os
 
+# pick size of gameboard
 repeat=True
 while repeat:
     repeat=False
-    val = int(input("Enter game size between 1 and 9\n"))
-
-    if val<1 or val>9:
-        print("invalid input")
+    try:
+        val = int(input("Enter game size between 1 and 9\n"))
+        if val<1 or val>9:
+            print("invalid input\n")
+            repeat=True  
+    except:
+        print("input must be an integer\n")
         repeat=True
 
 pg.init()
