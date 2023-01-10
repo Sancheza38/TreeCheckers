@@ -7,8 +7,6 @@ from typing import List
 from hexagon import HexagonTile
 from unit import Unit
 
-pg.init()
-
 current_player = constants.PLAYER_ONE
 next_player = constants.PLAYER_TWO
 num_alive = constants.NUM_ALIVE
@@ -252,12 +250,12 @@ def main():
             elif num_alive[0]==1 or num_alive[1]==1:
                 game_over = True
 
-            elif not tempUnit and event.type == pg.MOUSEBUTTONDOWN:
+            elif not tempUnit and event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
                 tempUnit=UnitFind(circleUnits)
                 origin = tempUnit.center
                 mouse_down = True
 
-            elif event.type == pg.MOUSEBUTTONUP:
+            elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
                 mouse_down=False
                 kill_check(tempUnit, circleUnits)
                 changePlayer(tempUnit)
